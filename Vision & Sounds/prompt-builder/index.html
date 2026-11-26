@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="The Vision and Sounds Prompt Builder: structured, model-ready prompts for film, music, design, scripts, code, ads, copywriting, SEO, photography, image and video generation, 3D animation, renders and MCPs.">
+    <title>Prompt Builder | Vision and Sounds</title>
+    <link rel="icon" href="../vision_and_sounds_logo_transparent.png">
+    <link rel="stylesheet" href="builder.css">
+  </head>
+  <body>
+    <a class="skip" href="#builder">Skip to builder</a>
+
+    <header class="topbar">
+      <a class="brand" href="../index.html" aria-label="Vision and Sounds home">
+        <img src="../vision_and_sounds_logo_transparent.png" alt="Vision and Sounds">
+      </a>
+      <div class="topbar-title">
+        <span class="dot" aria-hidden="true"></span>
+        <strong>Prompt Builder</strong>
+        <span class="muted">Strategy + Creativity + Technology + AI</span>
+      </div>
+      <div class="topbar-actions">
+        <button type="button" class="btn ghost" data-action="library">Library</button>
+        <a class="btn dark" href="../index.html#contact">Work with us</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="rail" aria-label="Prompt categories">
+        <div class="search">
+          <label class="sr-only" for="domain-search">Search categories</label>
+          <input id="domain-search" type="search" placeholder="Search…  ( / )" autocomplete="off" data-search>
+        </div>
+        <div class="rail-groups" data-rail></div>
+      </nav>
+
+      <main id="builder" class="builder" aria-labelledby="domain-title">
+        <div class="builder-head" data-head></div>
+        <div class="targets" data-targets></div>
+        <div class="toolbar">
+          <button type="button" class="btn ghost" data-action="surprise">✦ Surprise me</button>
+          <button type="button" class="btn ghost" data-action="reset">Clear</button>
+        </div>
+        <form class="form" data-form onsubmit="return false"></form>
+        <fieldset class="form-section globals" data-globals></fieldset>
+      </main>
+
+      <aside class="panel" aria-label="Generated prompt">
+        <div class="panel-inner">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">Live prompt</p>
+              <div class="meter" role="meter" aria-label="Prompt strength" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-meter>
+                <span></span>
+              </div>
+              <p class="meter-label" data-meter-label>Draft</p>
+            </div>
+            <button type="button" class="btn yellow" data-action="copy" title="Copy (Ctrl/⌘ + Enter)">Copy prompt</button>
+          </div>
+          <div class="output" data-output aria-live="polite"></div>
+          <div class="panel-foot">
+            <span class="stats" data-stats></span>
+            <div class="panel-actions">
+              <button type="button" class="mini" data-action="save">Save</button>
+              <button type="button" class="mini" data-action="share">Share link</button>
+              <button type="button" class="mini" data-action="download">.txt</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="mobile-bar">
+      <button type="button" class="btn yellow" data-action="copy">Copy prompt</button>
+      <a class="btn dark" href="#output-anchor" onclick="document.querySelector('.panel').scrollIntoView({behavior:'smooth'});return false;">View</a>
+    </div>
+
+    <dialog class="library" data-library aria-labelledby="library-title">
+      <header>
+        <h2 id="library-title">Your library</h2>
+        <button type="button" class="mini ghost" data-action="close-library" aria-label="Close library">Close</button>
+      </header>
+      <div class="library-list" data-library-list></div>
+    </dialog>
+
+    <div class="toast" role="status" data-toast></div>
+
+    <script src="domains.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
