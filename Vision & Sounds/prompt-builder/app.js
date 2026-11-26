@@ -482,6 +482,19 @@
     copy(url, "Share link copied");
   }
 
+  function readHandoff() {
+    // Prompts sent from Agent mode ("Open in Builder")
+    const p = store.get("vs.pb.handoff", null);
+    if (!p || !byId[p.d] || !p.v || typeof p.v !== "object") return false;
+    try { localStorage.removeItem("vs.pb.handoff"); } catch (e) { /* ignore */ }
+    state.domain = p.d;
+    state.values[p.d] = p.v;
+    if (p.t) state.targets[p.d] = p.t;
+    persist();
+    setTimeout(() => toast("Loaded from Agent mode"), 300);
+    return true;
+  }
+
   function readHash() {
     const h = decodeURIComponent(location.hash.slice(1));
     if (!h) return;
@@ -505,8 +518,19 @@
     persist();
   }
 
+  let downloadsCap = null;
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("downloads").then((x) => { downloadsCap = x; }).catch(() => {});
+  }
+
   function download() {
     const d = domain();
+    if (downloadsCap) {
+      downloadsCap.save({ filename: `prompt-${d.id}-${target(d).id}.txt`, data: fullText() + "\n" }).catch((e) => {
+        if (e && e.code !== "declined") toast("This view can't save files. Use Copy instead.");
+      });
+      return;
+    }
     const blob = new Blob([fullText() + "\n"], { type: "text/plain" });
     const a = el("a", { href: URL.createObjectURL(blob), download: `prompt-${d.id}-${target(d).id}.txt` });
     document.body.append(a);
@@ -519,8 +543,7 @@
     const d = domain();
     const v = values(d);
     const firstText = d.fields.map((f) => v[f.id]).find((x) => typeof x === "string" && x.length > 3) || d.name;
-    const name = window.prompt("Name this prompt", firstText.slice(0, 60));
-    if (name === null) return;
+    const name = firstText.slice(0, 60);
     const list = store.get(LS_SAVED, []);
     list.unshift({ id: Date.now().toString(36), name: t(name) || d.name, domain: d.id, target: target(d).id, values: JSON.parse(JSON.stringify(v)), at: new Date().toISOString() });
     store.set(LS_SAVED, list.slice(0, 200));
@@ -606,7 +629,7 @@
     renderBuilder();
   });
 
-  readHash();
+  if (!readHandoff()) readHash();
   renderRail();
   renderBuilder();
 })();

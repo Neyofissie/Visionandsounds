@@ -246,3 +246,10 @@
   .show-board .chat-head { position: relative; z-index: 21; }
   .show-board .agent-layout .board-panel { top: 61px; }
 }
+
+.notice.ok { background: var(--blue-wash); border-color: rgba(0, 108, 134, 0.25); }
+.settings .notice { margin: 0 0 16px; }
+.continue { display: flex; }
+.live-steps { display: flex; flex-direction: column; gap: 10px; }
+.live-steps:empty { display: none; }
+.proj-del.confirm { opacity: 1; width: auto; padding: 0 8px; background: #b3261e; color: #fff !important; font-size: 0.72rem; font-weight: 800; }

@@ -58,6 +58,24 @@
     }
   }
 
+  /* Inside a claude.ai artifact the page can ask Claude on the viewer's own
+     account ("sample") and offer files ("downloads"). Elsewhere both stay null. */
+  let sampleFn = null;
+  let sampleTools = false;
+  let downloadsCap = null;
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("sample").then(async (s) => {
+      if (!s) return;
+      const lim = await s.limits().catch(() => null);
+      sampleFn = s;
+      sampleTools = !!(lim && lim.tools);
+      if (current && !busy) renderAll();
+    }).catch(() => {});
+    window.claude.use("downloads").then((d) => { downloadsCap = d; }).catch(() => {});
+  }
+  const viaClaude = () => !!sampleFn && sampleTools && !apiKey && !settings.baseURL;
+  const connected = () => viaClaude() || !!apiKey || !!settings.baseURL;
+
   let projects = safe.get(localStorage, LS_PROJECTS, []);
   let current = null;
 
@@ -71,6 +89,7 @@
       plan: null,
       deliverables: [],
       builds: {},
+      chat: [],
     };
     projects.unshift(p);
     return p;
@@ -139,7 +158,16 @@
     toast(msg);
   }
 
+  const SAVE_EXT = ["md", "txt", "json", "html", "csv", "svg"];
   function download(name, text, type = "text/plain") {
+    if (downloadsCap) {
+      const ext = (name.split(".").pop() || "").toLowerCase();
+      const filename = SAVE_EXT.includes(ext) ? name : name.replace(/\.[^.]*$/, "") + ".txt";
+      downloadsCap.save({ filename, data: text }).catch((e) => {
+        if (e && e.code !== "declined") toast("This view can't save files. Use Copy instead.");
+      });
+      return;
+    }
     const a = el("a", { href: URL.createObjectURL(new Blob([text], { type })), download: name });
     document.body.append(a);
     a.click();
@@ -463,8 +491,14 @@ ${catalogue()}`;
           ),
           el("button", {
             type: "button", class: "proj-del", "aria-label": `Delete ${p.title}`, title: "Delete project",
-            onclick: () => {
-              if (!window.confirm(`Delete “${p.title}”? This can't be undone.`)) return;
+            onclick: (e) => {
+              const btn = e.currentTarget;
+              if (!btn.classList.contains("confirm")) {
+                btn.classList.add("confirm");
+                btn.textContent = "Delete?";
+                setTimeout(() => { btn.classList.remove("confirm"); btn.textContent = "×"; }, 3000);
+                return;
+              }
               projects = projects.filter((x) => x.id !== p.id);
               if (current && current.id === p.id) current = projects[0] || newProject();
               persist();
@@ -511,8 +545,29 @@ ${catalogue()}`;
     return nodes;
   }
 
+  const chipNode = (label, cls = "") => el("div", { class: "chip-step " + cls }, el("span", { class: "dot", "aria-hidden": "true" }), label);
+  const hasHistory = (p) => p.messages.length > 0 || (p.chat || []).length > 0;
+
+  function continueButton() {
+    const p = current;
+    const last = p.backend === "claude" ? (p.chat || []).slice(-1)[0] : p.messages.slice(-1)[0];
+    const left = p.plan ? p.plan.tasks.filter((t) => t.status !== "done").length : 0;
+    if (busy || !left || !last || last.role !== "assistant") return null;
+    return el("div", { class: "continue" },
+      el("button", { type: "button", class: "btn dark", onclick: () => { ui.input.value = "Continue with the remaining tasks."; send(); } }, `Continue · ${left} task${left === 1 ? "" : "s"} left`)
+    );
+  }
+
   function renderTranscript() {
     const nodes = [];
+    for (const m of current.chat || []) {
+      if (m.role === "user") nodes.push(el("div", { class: "msg user", text: m.content }));
+      else {
+        (m.steps || []).forEach((label) => nodes.push(chipNode(label)));
+        if (H.t(m.content)) nodes.push(el("div", { class: "msg agent md", html: md(m.content) }));
+        if (m.note) nodes.push(chipNode(m.note, "warn"));
+      }
+    }
     for (const m of current.messages) {
       if (m.role === "user") {
         const texts = typeof m.content === "string" ? [m.content] : m.content.filter((b) => b.type === "text").map((b) => b.text);
@@ -526,7 +581,9 @@ ${catalogue()}`;
         nodes.push(...renderBlocks(m.content, false));
       }
     }
-    if (!current.messages.length) nodes.push(emptyState());
+    if (!hasHistory(current)) nodes.push(emptyState());
+    const cont = continueButton();
+    if (cont) nodes.push(cont);
     ui.transcript.replaceChildren(...nodes);
     ui.title.textContent = current.title;
     scrollDown(true);
@@ -540,12 +597,17 @@ ${catalogue()}`;
   ];
 
   function emptyState() {
-    const noKey = !apiKey && !settings.baseURL;
+    const noKey = !connected();
     return el("div", { class: "empty" },
       el("p", { class: "eyebrow", text: "Agent mode" }),
       el("h2", { text: "Describe a project. The agent plans it, makes it, and files every deliverable." }),
       el("p", { class: "muted", text: "Scripts, copy, ads, SEO, code and specs are written in full. Image, video, music and 3D work comes back as model-ready prompts you can paste into Midjourney, Veo, Suno and the rest, or open in the Builder." }),
-      noKey
+      viaClaude()
+        ? el("div", { class: "notice ok" },
+            el("strong", { text: "Running on your Claude account." }),
+            " In claude.ai the agent uses your own Claude plan — no API key needed. You'll be asked once to allow it."
+          )
+        : noKey
         ? el("div", { class: "notice" },
             el("strong", { text: "Connect Claude to start." }),
             " Add an Anthropic API key in Settings. Usage is billed to that key's account. ",
@@ -599,7 +661,7 @@ ${catalogue()}`;
       el("div", { class: "deliv-actions" },
         el("button", { type: "button", class: "mini", onclick: () => copy(d.content, "Deliverable copied") }, "Copy"),
         el("button", { type: "button", class: "mini", onclick: () => download(filename(d), d.content) }, "Download"),
-        link ? el("a", { class: "mini", href: link, target: "_blank", rel: "noopener" }, "Open in Builder") : null
+        link ? el("a", { class: "mini", href: link, onclick: () => safe.set(localStorage, "vs.pb.handoff", current.builds[d.builder_ref]) }, "Open in Builder") : null
       ),
       el("div", { class: "deliv-body" }, preview)
     );
@@ -834,18 +896,154 @@ ${catalogue()}`;
       setBusy(false, stopRequested ? "Stopped" : "");
       persist();
       renderProjects();
+      const cont = continueButton();
+      if (cont) ui.transcript.append(cont);
       scrollDown();
+    }
+  }
+
+  /* ---------- Claude in claude.ai (artifact "sample" capability) ---------- */
+  function stateSummary(p) {
+    const parts = [];
+    if (p.plan) {
+      parts.push(`Plan: ${p.plan.title} — ${p.plan.summary}`);
+      p.plan.tasks.forEach((t) => parts.push(`- ${t.id} [${t.status}] ${t.title} (${t.discipline}): ${t.description}`));
+    } else parts.push("No plan yet.");
+    const latest = {};
+    p.deliverables.forEach((d) => (latest[d.task_id] = d));
+    let budget = 60000;
+    Object.values(latest).forEach((d) => {
+      const body = d.content.length > 3000 ? d.content.slice(0, 3000) + "\n…[truncated]" : d.content;
+      if (budget - body.length < 0) return parts.push(`\n## ${d.task_id} v${d.version}: ${d.title} (content omitted)`);
+      budget -= body.length;
+      parts.push(`\n## ${d.task_id} v${d.version}: ${d.title} [${d.format}]\n${body}`);
+    });
+    return parts.join("\n");
+  }
+
+  function instructionsTurn(p) {
+    return `${SYSTEM}
+
+# How this chat runs
+You are running inside the Vision and Sounds page on the person's own Claude account. Each message gets only a handful of tool rounds, so batch your work: in a single round, make every tool call that doesn't depend on another (for example build several prompts at once, or save two or three deliverables at once). You don't need update_task for in_progress — save_deliverable marks a task done. If tasks remain when you reply, list them briefly; the person can press Continue.
+
+# Current project state (kept by the page)
+${stateSummary(p)}
+
+The conversation follows.`;
+  }
+
+  const SAMPLE_ERRORS = {
+    not_granted: "Claude wasn't allowed for this page. You can allow it from the artifact's Permissions menu, then try again.",
+    sampling_disabled: "Claude isn't available for this account here.",
+    rate_limited: "You've hit a usage limit. Wait a little, then press Send again.",
+    session_expired: "Your claude.ai session expired. Sign in again, then retry.",
+    refused: "Claude declined this request. Try rephrasing it.",
+    empty_completion: "Claude returned nothing. Try asking for a smaller step.",
+    prompt_too_large: "This project has grown too large for one message. Export it, then start a new project for the next phase.",
+    tools_unavailable: "This view can't run the agent's tools. Open the page in a browser on claude.ai.",
+  };
+
+  async function runClaude() {
+    if (busy) return;
+    stopRequested = false;
+    setBusy(true, "Thinking… (the first reply can take up to a minute)");
+    const p = current;
+    const live = liveNode();
+    const stepsEl = el("div", { class: "live-steps" });
+    const textEl = el("div", { class: "msg agent md" });
+    live.append(stepsEl, textEl);
+    scrollDown(true);
+    const steps = [];
+    const ctl = (activeCtl = new AbortController());
+
+    const tools = TOOLS.map((t) => ({
+      name: t.name,
+      description: t.description,
+      inputSchema: t.input_schema,
+      execute(input) {
+        const problem = check(t.input_schema, input || {});
+        if (problem) throw new Error(problem);
+        const out = toolImpl[t.name](p, input);
+        const label = TOOL_LABEL[t.name](input);
+        steps.push(label);
+        stepsEl.append(chipNode(label));
+        ui.status.textContent = "Working…";
+        persist();
+        renderBoard();
+        renderProjects();
+        ui.title.textContent = p.title;
+        scrollDown();
+        if (out && out.error) throw new Error(out.error);
+        return out;
+      },
+    }));
+
+    const history = (p.chat || []).slice(-30).map((m) => ({
+      role: m.role,
+      content: m.role === "assistant"
+        ? `${H.t(m.content) || "(no reply text)"}${m.steps && m.steps.length ? `\n\n[Actions taken: ${m.steps.join("; ")}]` : ""}`
+        : m.content,
+    }));
+    while (history.length && history[0].role !== "user") history.shift();
+
+    try {
+      const r = await sampleFn([{ role: "user", content: instructionsTurn(p) }, ...history], {
+        tools,
+        signal: ctl.signal,
+        cache: false,
+        modelTier: settings.model === "claude-sonnet-5-5" ? "default" : "complex",
+        effort: settings.effort === "xhigh" ? "high" : settings.effort,
+        onText: ({ text }) => {
+          textEl.innerHTML = md(text);
+          ui.status.textContent = "Writing…";
+          scrollDown();
+        },
+      });
+      p.chat.push({ role: "assistant", content: r.text, steps, note: r.truncated ? "Reply was cut short — press Continue." : undefined });
+    } catch (e) {
+      const code = (e && e.code) || "upstream_error";
+      if (e && e.text || steps.length) p.chat.push({ role: "assistant", content: (e && e.text) || "", steps, note: code === "cancelled" ? "Stopped" : undefined });
+      if (code !== "cancelled") {
+        const msg = SAMPLE_ERRORS[code] || "Something went wrong reaching Claude. Press Retry.";
+        setTimeout(() => ui.transcript.append(
+          el("div", { class: "error" },
+            el("span", { text: msg }),
+            code === "upstream_error" ? el("button", { type: "button", class: "mini", onclick: (ev) => { ev.currentTarget.parentElement.remove(); ui.input.value = "Please continue where you left off."; send(); } }, "Retry") : null
+          )
+        ), 0);
+      }
+    } finally {
+      activeCtl = null;
+      setBusy(false, stopRequested ? "Stopped" : "");
+      persist();
+      renderAll();
     }
   }
 
   function send() {
     const text = H.t(ui.input.value);
     if (!text || busy) return;
+    const p = current;
+    if (!p.backend && hasHistory(p)) p.backend = p.chat && p.chat.length ? "claude" : "api";
+    if (!p.backend) p.backend = viaClaude() ? "claude" : "api";
+    if (p.backend === "claude") {
+      if (!sampleFn) return toast("This project runs on Claude in claude.ai. Open it there, or start a new project.");
+      p.chat = p.chat || [];
+      p.chat.push({ role: "user", content: text });
+      if (p.title === "New project") p.title = text.slice(0, 60) + (text.length > 60 ? "…" : "");
+      ui.input.value = "";
+      autosize();
+      persist();
+      renderTranscript();
+      renderProjects();
+      return runClaude();
+    }
     if (!apiKey && !settings.baseURL) {
+      p.backend = undefined;
       openSettings();
       return toast("Add your API key first");
     }
-    const p = current;
     const last = p.messages[p.messages.length - 1];
     // Keep roles alternating: after a stop or error the last message may already be the user's.
     if (last && last.role === "user") {
@@ -863,14 +1061,18 @@ ${catalogue()}`;
     run();
   }
 
+  let activeCtl = null;
   function stop() {
     stopRequested = true;
+    if (activeCtl) activeCtl.abort();
     if (activeStream) activeStream.abort();
   }
 
   /* ---------------- settings ---------------- */
   function openSettings() {
     const f = ui.settings;
+    const inClaude = !!sampleFn && sampleTools;
+    f.querySelector("[data-claude-note]").hidden = !inClaude;
     f.querySelector("[name=key]").value = apiKey;
     f.querySelector("[name=remember]").checked = !!settings.remember;
     f.querySelector("[name=baseURL]").value = settings.baseURL;
@@ -890,7 +1092,7 @@ ${catalogue()}`;
     settings.effort = f.querySelector("[name=effort]").value;
     settings.web = f.querySelector("[name=web]").checked;
     saveSettings();
-    ui.input.placeholder = apiKey || settings.baseURL ? "Describe your project, or ask for changes…" : "Add your API key in Settings, then describe your project…";
+    ui.input.placeholder = connected() ? "Describe your project, or ask for changes…" : "Add your API key in Settings, then describe your project…";
     if (!current.messages.length) renderTranscript();
     toast("Settings saved");
   });
@@ -931,5 +1133,5 @@ ${catalogue()}`;
 
   current = projects[0] || newProject();
   renderAll();
-  if (!apiKey && !settings.baseURL && !current.messages.length) ui.input.placeholder = "Add your API key in Settings, then describe your project…";
+  if (!connected() && !hasHistory(current)) ui.input.placeholder = "Add your API key in Settings, then describe your project…";
 })();
