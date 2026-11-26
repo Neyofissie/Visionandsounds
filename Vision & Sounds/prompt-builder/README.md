@@ -1,7 +1,8 @@
 # Vision & Sounds — Prompt Builder
 
-A zero-dependency, model-aware prompt builder for every discipline the studio works in.
-Open `index.html` in a browser (works from disk or any static host — no build step).
+A zero-dependency, model-aware prompt builder for every discipline the studio works in, plus an
+Agent mode that finishes whole projects from chat. Open `index.html` (Builder) or `agent.html`
+(Agent) in a browser — works from disk or any static host, no build step.
 
 ## Disciplines & targets
 
@@ -35,6 +36,32 @@ Open `index.html` in a browser (works from disk or any static host — no build 
 Surprise me (random fill) · ↻ Idea buttons · custom chips · prompt-strength meter ·
 copy / download `.txt` · shareable links (state encoded in the URL) · saved library
 (browser localStorage) · `/` to search · `Ctrl/⌘ + Enter` to copy.
+
+## Agent mode (`agent.html`)
+
+Describe a project in chat and a Claude-powered production agent takes it from brief to finished
+deliverables:
+
+1. It asks up to 3 questions only if something essential is missing, then states its assumptions.
+2. It builds a **plan** (3–10 tasks across the disciplines above) shown on the project board.
+3. It works task by task. Writing work (strategy, scripts, copy, ads, SEO, code, MCP specs) is
+   written in full. AI-generation work (image, video, music, 3D, renders) runs through this
+   Prompt Builder's engine as a tool, and comes back as model-ready prompts with an
+   **Open in Builder** link.
+4. Ask for changes in chat; revised deliverables are saved as new versions.
+
+Projects, chat history and deliverables are saved in the browser (localStorage). Export a
+project as one Markdown file, or copy/download single deliverables.
+
+**Setup:** open Settings and paste an Anthropic API key (from the Claude Console). Usage is
+billed to that key's account. The key is kept in the browser session (or on the device if you
+tick "Remember") and is sent only to Anthropic. For a public deployment, don't ship a key:
+run a small proxy that adds the key server-side and enter its URL as the Proxy URL.
+
+**Under the hood:** the official Anthropic TypeScript SDK (`@anthropic-ai/sdk@1.8.0`, loaded
+from jsDelivr), Claude Opus 5.5 by default (Sonnet 5.5 selectable), adaptive thinking, streaming
+with a client-side tool loop (`create_plan`, `update_task`, `build_prompt`, `save_deliverable`),
+prompt caching, server-side refusal fallbacks, and optional web search.
 
 ## Adding a discipline
 

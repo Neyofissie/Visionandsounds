@@ -98,6 +98,19 @@ button { cursor: pointer; }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 0 4px rgba(0, 167, 200, 0.18); flex: none; }
 .topbar-actions { display: flex; gap: 8px; }
 
+/* ---------------- mode switch ---------------- */
+.modes {
+  display: inline-flex; justify-self: start; gap: 2px; padding: 3px;
+  border: 1px solid var(--line-strong); border-radius: 999px; background: var(--paper);
+}
+.modes a {
+  padding: 6px 16px; border-radius: 999px;
+  font-size: 0.84rem; font-weight: 800;
+  transition: background 140ms ease, color 140ms ease;
+}
+.modes a:hover { background: rgba(16, 17, 20, 0.06); }
+.modes a[aria-current="page"] { background: var(--ink); color: #fff; }
+
 /* ---------------- layout ---------------- */
 .layout {
   display: grid;

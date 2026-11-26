@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Vision and Sounds Agent: describe a creative project in chat and an AI production agent plans it, writes it and files every deliverable.">
+    <title>Agent | Vision and Sounds Prompt Builder</title>
+    <link rel="icon" href="../vision_and_sounds_logo_transparent.png">
+    <link rel="stylesheet" href="builder.css">
+    <link rel="stylesheet" href="agent.css">
+  </head>
+  <body class="agent-page">
+    <header class="topbar">
+      <a class="brand" href="../index.html" aria-label="Vision and Sounds home">
+        <img src="../vision_and_sounds_logo_transparent.png" alt="Vision and Sounds">
+      </a>
+      <nav class="modes" aria-label="Prompt Builder modes">
+        <a href="index.html">Builder</a>
+        <a href="agent.html" aria-current="page">Agent</a>
+      </nav>
+      <div class="topbar-actions">
+        <button type="button" class="btn ghost" data-action="settings">Settings</button>
+        <button type="button" class="btn dark" data-action="new">New project</button>
+      </div>
+    </header>
+
+    <div class="agent-layout">
+      <aside class="projects" aria-label="Projects">
+        <div class="projects-head">
+          <h2>Projects</h2>
+          <button type="button" class="mini ghost-dark" data-action="new">+ New</button>
+        </div>
+        <div class="projects-list" data-projects></div>
+        <p class="privacy">Projects are saved in this browser only. Your API key is sent only to Anthropic, or to the proxy you set.</p>
+      </aside>
+
+      <main class="chat" aria-label="Chat">
+        <div class="chat-head">
+          <button type="button" class="mini ghost-dark only-mobile" data-action="toggle-projects" aria-label="Show projects">☰</button>
+          <h1 data-project-title>New project</h1>
+          <div class="view-switch only-mobile" role="group" aria-label="View">
+            <button type="button" class="mini ghost-dark" data-action="view-chat">Chat</button>
+            <button type="button" class="mini ghost-dark" data-action="view-board">Board <span class="count" data-board-count></span></button>
+          </div>
+          <button type="button" class="mini ghost-dark hide-mobile" data-action="export">Export .md</button>
+        </div>
+        <div class="transcript" data-transcript aria-live="polite"></div>
+        <form class="composer" data-composer>
+          <label class="sr-only" for="agent-input">Message the agent</label>
+          <textarea id="agent-input" rows="1" placeholder="Describe your project, or ask for changes…" data-input></textarea>
+          <div class="composer-row">
+            <span class="status" data-status></span>
+            <button type="button" class="btn ghost" data-stop hidden>Stop</button>
+            <button type="submit" class="btn yellow" data-send>Send</button>
+          </div>
+        </form>
+      </main>
+
+      <aside class="board-panel" aria-label="Project board">
+        <div class="board-head">
+          <p class="panel-kicker">Project board</p>
+          <button type="button" class="mini" data-action="export">Export .md</button>
+        </div>
+        <div class="board" data-board></div>
+      </aside>
+    </div>
+
+    <dialog class="settings" data-settings aria-labelledby="settings-title">
+      <form method="dialog">
+        <header>
+          <h2 id="settings-title">Agent settings</h2>
+        </header>
+        <div class="settings-body">
+          <div class="field">
+            <label class="field-label" for="s-key">Anthropic API key</label>
+            <input id="s-key" name="key" type="password" autocomplete="off" placeholder="sk-ant-…">
+            <p class="hint">Create one in the Claude Console (platform.claude.com). Usage is billed to that account. Don't use a key on a shared computer.</p>
+          </div>
+          <label class="check"><input type="checkbox" name="remember"> Remember the key on this device</label>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label" for="s-model">Model</label>
+              <select id="s-model" name="model">
+                <option value="claude-opus-5-5">Claude Opus 5.5 (best)</option>
+                <option value="claude-sonnet-5-5">Claude Sonnet 5.5 (faster, cheaper)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="field-label" for="s-effort">Effort</label>
+              <select id="s-effort" name="effort">
+                <option value="low">Low — quick drafts</option>
+                <option value="medium">Medium</option>
+                <option value="high">High — recommended</option>
+                <option value="xhigh">Extra high — complex builds</option>
+              </select>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" name="web"> Allow web research (search the web for facts and references)</label>
+          <div class="field">
+            <label class="field-label" for="s-base">Proxy URL (optional)</label>
+            <input id="s-base" name="baseURL" type="url" placeholder="https://your-proxy.example.com">
+            <p class="hint">For a public site: point this at a server that adds your key, and leave the key field empty.</p>
+          </div>
+        </div>
+        <footer>
+          <button type="submit" class="btn ghost" value="cancel" formnovalidate>Cancel</button>
+          <button type="submit" class="btn dark" value="save">Save</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <div class="toast" role="status" data-toast></div>
+
+    <script src="domains.js"></script>
+    <script src="agent.js"></script>
+  </body>
+</html>
