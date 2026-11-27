@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Interactive 3D model of the Narro structural survey of The Pavilion, 19-21 George Place, Bathgate.">
+<title>The Pavilion survey in 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/*
+VOICE: an engineer's site model — clear, calm, exact; the report's words, paraphrased.
+IDEA: the surveyor's tagged model: a 3D building with numbered defect pins, like a marked-up drawing.
+PICTURE: the live 3D Pavilion, walls go glassy to show the steel frame, trusses, gallery, stage and basement.
+COLOUR and TYPE: overcast Bathgate dusk viewport, white render, faded red east wall; severity red/orange/amber/blue/green. Barlow Condensed (cinema signage) + Barlow.
+LAYOUT: model left, findings list + detail right; then priorities and building facts below. Stacks under 900px.
+*/
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#11171b);--ink:light-dark(#172026,#e8edf0);--mute:light-dark(#56636b,#9fb0ba);--line:light-dark(#dde3e6,#26323a);--card:light-dark(#f5f7f8,#182128);
+--imm:#d7261e;--urg:#ee7a00;--inv:#d9a600;--mnt:#2f7fd0;--good:#1f9d55}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Barlow,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:"Barlow Condensed",Barlow,sans-serif;font-weight:700;line-height:1.05;margin:0;text-wrap:balance}
+h1{font-size:clamp(32px,4.4vw,48px)}h2{font-size:32px;margin-bottom:14px}h3{font-size:24px}
+.band{padding:clamp(20px,3vw,40px) max(4vw,16px)}
+header.band{padding-bottom:16px;display:flex;flex-wrap:wrap;gap:12px 32px;align-items:end;justify-content:space-between}
+header p{margin:6px 0 0;color:var(--mute);max-width:70ch}
+.keys{display:flex;flex-wrap:wrap;gap:8px}
+.key{display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--card);font:600 14px Barlow,sans-serif;color:var(--ink);cursor:pointer;min-height:40px}
+.key[aria-pressed=false]{opacity:.4}
+.key b{font-size:18px}
+.dot{width:12px;height:12px;border-radius:50%;flex:none}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 400px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.view{position:relative;height:min(78vh,760px);min-height:440px;background:linear-gradient(#24343f,#4d5f69 70%,#6b7a80);overflow:hidden;touch-action:none}
+.view canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#pins{position:absolute;inset:0;pointer-events:none}
+.pin{position:absolute;left:0;top:0;pointer-events:auto;border:2px solid #fff;color:#fff;font:700 14px Barlow,sans-serif;width:30px;height:30px;border-radius:50%;cursor:pointer;display:grid;place-items:center;box-shadow:0 2px 8px #0007;padding:0;transition:width .2s,height .2s}
+.pin.behind{opacity:.45;transform-origin:center;width:22px;height:22px;font-size:11px;border-width:1px}
+.pin.sel{width:40px;height:40px;font-size:17px;z-index:3;outline:3px solid #fff8;outline-offset:3px}
+.pin span{position:absolute;left:calc(100% + 8px);white-space:nowrap;background:#0d1418e6;color:#fff;font:600 13px Barlow,sans-serif;padding:3px 8px;border-radius:4px;display:none}
+.pin.sel span,.pin:hover span{display:block}
+.tools{position:absolute;left:12px;right:12px;top:12px;display:flex;flex-wrap:wrap;gap:6px;pointer-events:none}
+.tools button,.tog{pointer-events:auto;background:#0d1418cc;color:#fff;border:1px solid #ffffff30;border-radius:6px;font:600 14px Barlow,sans-serif;padding:8px 12px;min-height:40px;cursor:pointer}
+.tools button[aria-pressed=true]{background:#fff;color:#111}
+.tools .sp{flex:1}
+.compass{position:absolute;right:14px;bottom:14px;color:#fff;font:600 12px Barlow,sans-serif;background:#0d1418aa;padding:6px 10px;border-radius:6px;pointer-events:none}
+.hint{position:absolute;left:14px;bottom:14px;color:#ffffffcc;font:500 13px Barlow,sans-serif;pointer-events:none}
+aside{border-left:1px solid var(--line);display:flex;flex-direction:column;max-height:min(78vh,760px);min-height:440px}
+#detail{padding:18px 18px 8px;overflow-y:auto;flex:1}
+#list{border-top:1px solid var(--line);overflow-y:auto;max-height:42%;flex:none}
+#list button{display:flex;gap:10px;width:100%;align-items:center;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 16px;color:var(--ink);font:500 15px Barlow,sans-serif;cursor:pointer;min-height:44px}
+#list button:hover,#list button.sel{background:var(--card)}
+#list .n{width:24px;height:24px;border-radius:50%;color:#fff;font:700 13px Barlow,sans-serif;display:grid;place-items:center;flex:none}
+.chip{display:inline-block;color:#fff;font:600 13px Barlow,sans-serif;padding:2px 10px;border-radius:99px;margin-bottom:8px}
+.loc{color:var(--mute);font-size:15px;margin:6px 0 10px}
+#detail p{margin:0 0 10px}
+#detail h4{margin:14px 0 4px;font:600 15px Barlow,sans-serif;color:var(--mute)}
+.strip{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px}
+.strip button{flex:none;width:150px;scroll-snap-align:start;border:0;padding:0;background:none;cursor:zoom-in;text-align:left;color:var(--mute);font:500 13px Barlow,sans-serif}
+.strip img{width:150px;height:100px;object-fit:cover;border-radius:4px;display:block;margin-bottom:3px}
+.nav{display:flex;gap:8px;margin:12px 0 6px}
+.nav button{flex:1;min-height:44px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:6px;font:600 15px Barlow,sans-serif;cursor:pointer}
+button:focus-visible{outline:3px solid #2f7fd0;outline-offset:2px}
+.cols{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:clamp(24px,4vw,56px);max-width:1240px}
+ol.pri{margin:0;padding:0;list-style:none;counter-reset:p}
+ol.pri li{display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+ol.pri li::before{counter-increment:p;content:counter(p);width:30px;height:30px;border-radius:50%;background:var(--c);color:#fff;font:700 15px Barlow,sans-serif;display:grid;place-items:center}
+ol.pri b{display:block}
+dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 16px;margin:0}
+dt{color:var(--mute)}dd{margin:0}
+.note{color:var(--mute);font-size:14px;margin-top:18px}
+dialog{border:0;padding:0;background:#0b0f12;color:#fff;max-width:min(96vw,1000px);border-radius:8px}
+dialog::backdrop{background:#000c}
+dialog img{display:block;max-width:100%;max-height:76vh;margin:auto}
+dialog .bar{display:flex;gap:8px;align-items:center;padding:10px}
+dialog .bar p{flex:1;margin:0;font-size:15px}
+dialog button{min-height:44px;min-width:44px;background:#ffffff1a;color:#fff;border:0;border-radius:6px;font:600 15px Barlow,sans-serif;cursor:pointer}
+@media(max-width:900px){.stage{grid-template-columns:1fr}aside{border-left:0;max-height:none}#list{max-height:none}.view{height:62vh;min-height:380px}.cols{grid-template-columns:1fr}}
+@media(max-width:600px){.hint{display:none}.key{padding:4px 10px;min-height:36px;font-size:13px}.compass{font-size:11px}.tools button,.tog{padding:6px 9px;font-size:13px}}
+</style>
+</head>
+<body>
+<header class="band">
+  <div>
+    <h1>The Pavilion, Bathgate: sound frame, failing weatherproofing</h1>
+    <p>Narro structural survey 26.1933 of 19–21 George Place, inspected 17 November 2026, as an explorable 3D model. Tap a pin or a finding to fly to it and see the photos.</p>
+  </div>
+  <div class="keys" id="keys" aria-label="Filter by priority"></div>
+</header>
+
+<section class="stage">
+  <div class="view" id="view">
+    <div class="tools">
+      <button data-v="overview">Overview</button>
+      <button data-v="front">Front</button>
+      <button data-v="east">East side</button>
+      <button data-v="rear">Rear</button>
+      <button data-v="annex">Annex</button>
+      <span class="sp"></span>
+      <button id="xray" aria-pressed="false">See inside</button>
+      <button id="roofs" aria-pressed="true">Roofs</button>
+    </div>
+    <div id="pins"></div>
+    <div class="hint">Drag to orbit · scroll or pinch to zoom · right-drag to pan</div>
+    <div class="compass">N ↑ George Place at front</div>
+  </div>
+  <aside>
+    <div id="detail" aria-live="polite"></div>
+    <div id="list" role="list"></div>
+  </aside>
+</section>
+
+<section class="band">
+  <div class="cols">
+    <div>
+      <h2>Repair priorities, in the report's order</h2>
+      <ol class="pri">
+        <li style="--c:var(--imm)"><div><b>Close the open south-west roof and gable</b>Immediate. Stop water reaching the stage, re-flash the gable and splice-repair rotten purlin ends to restore roof tying to the south wall.</div></li>
+        <li style="--c:var(--urg)"><div><b>Annex roof and upper floor</b>Active leaks and dry rot. Strip finishes for re-assessment; the roof may need full replacement with new flashings and gutters.</div></li>
+        <li style="--c:var(--urg)"><div><b>Steel in the outside walls</b>Repair, plate where needed and re-protect corroding beams and columns, worst along the east wall.</div></li>
+        <li style="--c:var(--inv)"><div><b>Investigate the west wall crack</b>Likely steel expansion from Annex water ingress; the wall junction may need re-tying.</div></li>
+        <li style="--c:var(--mnt)"><div><b>Ventilation, heating and overall weathertightness</b>Check and overhaul all flashings, cladding and parapets; tackle condensation and mould.</div></li>
+        <li style="--c:var(--inv)"><div><b>Specialist checks</b>Timber rot at the gallery corners and eaves rafter ends; possible asbestos ceiling tiles in the projection room.</div></li>
+      </ol>
+    </div>
+    <div>
+      <h2>The building</h2>
+      <dl>
+        <dt>Built</dt><dd>1920, John Fairweather, for the George Green cinema chain</dd>
+        <dt>Listing</dt><dd>Category C, LB51105 (added 27 May 2008)</dd>
+        <dt>Uses</dt><dd>Picture house, later bingo hall</dd>
+        <dt>Structure</dt><dd>Steel frame with brick infill bracing; steel roof trusses spanning the full auditorium, timber purlins at close centres</dd>
+        <dt>Floors</dt><dd>Timber joists on dwarf walls and steel beams; concrete and timber in the basement</dd>
+        <dt>Annex</dt><dd>Two-storey brick block to the west, cut timber roof</dd>
+        <dt>Foundations</dt><dd>Assumed mass concrete; no sign of movement or settlement</dd>
+        <dt>Client</dt><dd>Board of Trustees, RCCG Solid Rock Edinburgh</dd>
+        <dt>Engineer</dt><dd>Ben W Adam CEng, Narro Associates</dd>
+      </dl>
+      <p class="note">Walk-over survey only: no opening up, no lifted floorboards, no foundation or timber-decay investigation. The model is schematic, built from the report's description and photographs, not a measured survey.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="band" style="border-top:1px solid var(--line);color:var(--mute);font-size:14px;padding-block:18px">Interactive survey model by <a href="https://www.niyiyaroglah.com" style="color:inherit">Vision and Sounds Ltd</a>, Edinburgh. Survey content from Narro Associates report 26.1933 (26 November 2026).</footer>
+
+<dialog id="lb"><img id="lbImg" alt=""><div class="bar"><button id="lbPrev" aria-label="Previous photo">‹</button><p id="lbCap"></p><button id="lbNext" aria-label="Next photo">›</button><button id="lbClose">Close</button></div></dialog>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
