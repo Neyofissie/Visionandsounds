@@ -53,39 +53,35 @@ const sl = add(new THREE.PlaneGeometry(14, 1.75), new THREE.MeshBasicMaterial({m
 sl.rotation.x = -Math.PI / 2; sl.rotation.z = Math.PI;
 
 /* main auditorium: gable-fronted box, 16m wide, 32m long */
-const W = 8, EAVE = 9, RIDGE = 13.2, LEN = 32;
+const W = 8, EAVE = 9, RIDGE = 14.4, LEN = 32;
+const loader = new THREE.TextureLoader();
+function photoTex(name, rep) {
+  const t = loader.load('tex/' + name + '.jpg'); t.anisotropy = 8;
+  if (rep) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep, rep); }
+  return t;
+}
+const photoM = (name, rep) => { const t = photoTex(name, rep); return shellM(0xffffff, {map: t, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: .28}); };
+function gableFace(mat, z, flip) {
+  const g = new THREE.ShapeGeometry(prof), pos = g.attributes.position, uv = g.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + W) / (2 * W), pos.getY(i) / RIDGE);
+  const m = add(g, mat, 0, 0, z, false); if (flip) m.rotation.y = Math.PI; return m;
+}
 const prof = new THREE.Shape(); prof.moveTo(-W, 0); prof.lineTo(W, 0); prof.lineTo(W, EAVE); prof.lineTo(0, RIDGE); prof.lineTo(-W, EAVE); prof.closePath();
-const renderM = shellM(0xe9e5dc);
+const renderM = photoM('render', 1 / 6);
 add(new THREE.ExtrudeGeometry(prof, {depth: LEN, bevelEnabled: false}), renderM);
 
-/* east wall: faded red paint with rust lines along embedded steel */
-const eastTex = canvasTex(1024, 288, (g, w, h) => {
-  g.fillStyle = '#b8665f'; g.fillRect(0, 0, w, h);
-  for (let i = 0; i < 260; i++) { g.fillStyle = `rgba(236,230,222,${.25 + Math.random() * .5})`; g.beginPath(); g.ellipse(Math.random() * w, Math.random() * h, 6 + Math.random() * 40, 4 + Math.random() * 18, 0, 0, 7); g.fill(); }
-  g.strokeStyle = '#5a2d1c'; g.lineWidth = 5;
-  const by = h - 3 / 9 * h; g.beginPath(); g.moveTo(.1 * w, by); g.lineTo(.78 * w, by); g.stroke();
-  for (let z = 8; z <= 28; z += 4) { const u = (32 - z) / 32 * w; g.lineWidth = 4; g.beginPath(); g.moveTo(u, h); g.lineTo(u + (Math.random() * 6 - 3), h * .35); g.stroke(); }
-  g.fillStyle = '#9b1f1f'; g.fillRect(.6 * w, h - 2.4 / 9 * h, 2.2 / 32 * w, 2.4 / 9 * h); // escape door
-});
-const eastM = shellM(0xffffff, {map: eastTex});
+/* walls wrapped with the survey photos, perspective-corrected */
+const eastM = photoM('east');
 add(new THREE.PlaneGeometry(LEN, EAVE), eastM, W + 0.03, EAVE / 2, LEN / 2, false).rotation.y = Math.PI / 2;
 
-/* front facade (faces -z) */
-const facadeM = shellM(0xf3f0ea), darkM = shellM(0x26323a, {emissive: 0x3a2a10, emissiveIntensity: .35});
-add(new THREE.BoxGeometry(9.4, 6.4, .3), facadeM, 0, 3.2, -0.15);
-add(new THREE.BoxGeometry(10.4, .5, .7), facadeM, 0, 6.6, -0.3);
-const arch = new THREE.Shape(); arch.moveTo(-3.3, 0); arch.lineTo(3.3, 0); arch.lineTo(3.3, 3); arch.quadraticCurveTo(0, 5.2, -3.3, 3); arch.closePath();
-add(new THREE.ShapeGeometry(arch), darkM, 0, 0, -0.32, false).rotation.y = Math.PI;
-const letters = canvasTex(1024, 128, (g, w, h) => { g.fillStyle = '#1d2a33'; g.font = '700 104px "Barlow Condensed", sans-serif'; g.textAlign = 'center'; g.fillText('PAVILION', w / 2, 104); });
-const lm = add(new THREE.PlaneGeometry(5.6, .7), new THREE.MeshBasicMaterial({map: letters, transparent: true, depthWrite: false}), 0, 5.45, -0.33, false); lm.rotation.y = Math.PI;
-shell.push(lm.material);
-for (const x of [-1.6, 0, 1.6]) add(new THREE.BoxGeometry(.8, .8, .1), darkM, x, 7.6, -0.05, false);
-for (const x of [-6.2, 6.2]) for (const y of [2.6, 5.6]) add(new THREE.BoxGeometry(1, 1.4, .1), darkM, x, y, -0.05, false);
-add(new THREE.CircleGeometry(.85, 32), darkM, 0, 10.6, -0.06, false).rotation.y = Math.PI;
-add(new THREE.RingGeometry(.85, 1.15, 32), facadeM, 0, 10.6, -0.08, false).rotation.y = Math.PI;
-
+/* front gable (photo 0) and rear gable (photo 7) */
+gableFace(photoM('front'), -0.04, true);
+gableFace(photoM('rear'), LEN + 0.04, false);
+const darkM = shellM(0x26323a, {emissive: 0x3a2a10, emissiveIntensity: .35});
+add(new THREE.BoxGeometry(6.4, 2.6, .3), darkM, 0, 1.3, -0.12);
+for (const x of [-3.5, 3.5, -1.1, 1.1]) add(new THREE.BoxGeometry(.45, 2.6, .45), shellM(0xe8e2d6), x, 1.3, -0.25);
 /* corrugated roof, with failed sheeting at the south-west corner */
-const corr = canvasTex(64, 8, (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, 0); for (let i = 0; i <= 8; i++) gr.addColorStop(i / 8, i % 2 ? '#7c858a' : '#a9b1b5'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+const corr = canvasTex(64, 8, (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, 0); for (let i = 0; i <= 8; i++) gr.addColorStop(i / 8, i % 2 ? '#3f4952' : '#5f6b75'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
 corr.wrapS = corr.wrapT = THREE.RepeatWrapping; corr.repeat.set(1, 30);
 const roofM = shellM(0xffffff, {map: corr, metalness: .3, roughness: .6});
 const roofs = [];
@@ -104,11 +100,12 @@ const flap = sheet(-1, .5, .9, 29.2, 31.2); flap.rotation.z += .55; flap.rotatio
 
 /* annex: two-storey brick block to the west, slate roofs with a valley */
 const AX0 = -15.2, AX1 = -W - .02, AZ = 22, AH = 6.2;
-const annexM = shellM(0xe2d9c6);
+const annexM = photoM('render', 1 / 6);
 add(new THREE.BoxGeometry(AX1 - AX0, AH, AZ), annexM, (AX0 + AX1) / 2, AH / 2, AZ / 2);
-add(new THREE.BoxGeometry(.1, 1.6, 4.2), shellM(0x7d1f2c), AX0 - .05, 1.3, 3);
+const af = add(new THREE.PlaneGeometry(AX1 - AX0, AH), photoM('annex'), (AX0 + AX1) / 2, AH / 2, -0.04, false); af.rotation.y = Math.PI;
+add(new THREE.BoxGeometry(1.2, 2.2, .2), darkM, -11.6, 1.1, -0.08);
 for (const z of [7, 11, 15]) add(new THREE.BoxGeometry(.1, 1.1, 1), darkM, AX0 - .05, 4.4, z, false);
-const slateM = shellM(0x4c545a, {roughness: .7});
+const slateM = shellM(0x565c52, {roughness: .75});
 const tri = (a, b, h) => { const s = new THREE.Shape(); s.moveTo(a, 0); s.lineTo(b, 0); s.lineTo((a + b) / 2, h); s.closePath(); return s; };
 const rearRoof = add(new THREE.ExtrudeGeometry(tri(AX0 - .3, AX1 + .1, 2.6), {depth: AZ - 7.6, bevelEnabled: false}), slateM, 0, AH, 7.6); roofs.push(rearRoof);
 const frontRoof = add(new THREE.ExtrudeGeometry(tri(-.3, 8.3, 2.9), {depth: AX1 - AX0 + .3, bevelEnabled: false}), slateM, AX1 + .1, AH, 0);
